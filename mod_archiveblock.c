@@ -17,25 +17,9 @@
 **    SetHandler archiveblock
 **    </Location>
 **
-**  Then after restarting Apache via
-**
-**    $ apachectl restart
-**
-**  you immediately can request the URL /archiveblock and watch for the
-**  output of this module. This can be achieved for instance via:
-**
-**    $ lynx -mime_header http://localhost/archiveblock 
-**
-**  The output should be similar to the following one:
-**
-**    HTTP/1.1 200 OK
-**    Date: Tue, 31 Mar 1998 14:42:22 GMT
-**    Server: Apache/1.3.4 (Unix)
-**    Connection: close
-**    Content-Type: text/html
-**  
-**    The sample page from mod_archiveblock.c
-*/ 
+**    Docs at: https://httpd.apache.org/docs/2.4/developer/modguide.html
+**             https://httpd.apache.org/docs/2.4/programs/apxs.html
+*/
 
 #include "httpd.h"
 #include "http_config.h"
@@ -43,21 +27,51 @@
 #include "http_log.h"
 #include "ap_config.h"
 
+typedef struct {
+    const char *mappath;
+} archiveblock_config;
+
+static archiveblock_config config;
+
 /* The sample content handler */
 static int archiveblock_handler(request_rec *r)
 {
     if (strcmp(r->handler, "archiveblock")) {
         return DECLINED;
     }
-    r->content_type = "text/html";      
+
+    ap_log_rerror(APLOG_MARK, APLOG_CRIT, 0, r, "### config '%s'", config.mappath);
+    ap_log_rerror(APLOG_MARK, APLOG_CRIT, 0, r, "### filename '%s', uri '%s', path_info '%s'", r->filename, r->uri, r->path_info);
+
+    //### works for DECLINED for file responses but not errors
+    apr_table_add(r->headers_out, "X-Frotz", "maybe");
+
+    if (strcmp(r->uri, "/block/test.html"))
+        return DECLINED;
+    
+    r->content_type = "text/html";
+    apr_table_add(r->headers_out, "X-Zarf", "yes");
 
     if (!r->header_only)
         ap_rputs("The sample page from mod_archiveblock.c\n", r);
     return OK;
 }
 
+const char *archiveblock_set_path(cmd_parms *cmd, void *cfg, const char *arg)
+{
+    config.mappath = arg;
+    return NULL;
+}
+
+static const command_rec archiveblock_directives[] = {
+    AP_INIT_TAKE1("ArchiveBlockMapPath", archiveblock_set_path, NULL, RSRC_CONF, "The path to the block map."),
+    { NULL }
+};
+
 static void archiveblock_register_hooks(apr_pool_t *p)
 {
+    config.mappath = "/Users/zarf/Downloads/mod/archiveblock/blockmap";
+    
     ap_hook_handler(archiveblock_handler, NULL, NULL, APR_HOOK_MIDDLE);
 }
 
@@ -68,7 +82,7 @@ module AP_MODULE_DECLARE_DATA archiveblock_module = {
     NULL,                  /* merge  per-dir    config structures */
     NULL,                  /* create per-server config structures */
     NULL,                  /* merge  per-server config structures */
-    NULL,                  /* table of config file commands       */
-    archiveblock_register_hooks  /* register hooks                      */
+    archiveblock_directives,     /* table of config file commands */
+    archiveblock_register_hooks  /* register hooks  */
 };
 
