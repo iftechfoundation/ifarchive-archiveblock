@@ -27,13 +27,32 @@
 #include "http_log.h"
 #include "ap_config.h"
 
+static int archiveblock_handler(request_rec *r);
+
 typedef struct {
     const char *mappath;
 } archiveblock_config;
 
 static archiveblock_config config;
 
-/* The sample content handler */
+const char *archiveblock_set_path(cmd_parms *cmd, void *cfg, const char *arg)
+{
+    config.mappath = arg;
+    return NULL;
+}
+
+static const command_rec archiveblock_directives[] = {
+    AP_INIT_TAKE1("ArchiveBlockMapPath", archiveblock_set_path, NULL, RSRC_CONF, "The path to the block map."),
+    { NULL }
+};
+
+static void archiveblock_register_hooks(apr_pool_t *p)
+{
+    config.mappath = "/Users/zarf/Downloads/mod/archiveblock/blockmap";
+    
+    ap_hook_handler(archiveblock_handler, NULL, NULL, APR_HOOK_MIDDLE);
+}
+
 static int archiveblock_handler(request_rec *r)
 {
     if (strcmp(r->handler, "archiveblock")) {
@@ -55,24 +74,6 @@ static int archiveblock_handler(request_rec *r)
     if (!r->header_only)
         ap_rputs("The sample page from mod_archiveblock.c\n", r);
     return OK;
-}
-
-const char *archiveblock_set_path(cmd_parms *cmd, void *cfg, const char *arg)
-{
-    config.mappath = arg;
-    return NULL;
-}
-
-static const command_rec archiveblock_directives[] = {
-    AP_INIT_TAKE1("ArchiveBlockMapPath", archiveblock_set_path, NULL, RSRC_CONF, "The path to the block map."),
-    { NULL }
-};
-
-static void archiveblock_register_hooks(apr_pool_t *p)
-{
-    config.mappath = "/Users/zarf/Downloads/mod/archiveblock/blockmap";
-    
-    ap_hook_handler(archiveblock_handler, NULL, NULL, APR_HOOK_MIDDLE);
 }
 
 /* Dispatch list for API hooks */
