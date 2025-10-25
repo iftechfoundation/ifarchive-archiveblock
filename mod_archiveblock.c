@@ -35,6 +35,8 @@ typedef struct {
 
 static archiveblock_config config;
 
+static apr_table_t *tagmap = NULL;
+
 const char *archiveblock_set_path(cmd_parms *cmd, void *cfg, const char *arg)
 {
     config.mappath = arg;
@@ -49,6 +51,8 @@ static const command_rec archiveblock_directives[] = {
 static void archiveblock_register_hooks(apr_pool_t *p)
 {
     config.mappath = "/Users/zarf/Downloads/mod/archiveblock/blockmap";
+
+    tagmap = apr_table_make(p, 64);
     
     ap_hook_handler(archiveblock_handler, NULL, NULL, APR_HOOK_MIDDLE);
 }
@@ -59,11 +63,13 @@ static int archiveblock_handler(request_rec *r)
         return DECLINED;
     }
 
-    ap_log_rerror(APLOG_MARK, APLOG_CRIT, 0, r, "### config '%s'", config.mappath);
-    ap_log_rerror(APLOG_MARK, APLOG_CRIT, 0, r, "### filename '%s', uri '%s', path_info '%s'", r->filename, r->uri, r->path_info);
+    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "### config '%s'", config.mappath);
+    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "### filename '%s', uri '%s', path_info '%s'", r->filename, r->uri, r->path_info);
 
     //### works for DECLINED for file responses but not errors
     apr_table_add(r->headers_out, "X-Frotz", "maybe");
+
+    //### apr_stat()
 
     if (strcmp(r->uri, "/block/test.html"))
         return DECLINED;
@@ -74,6 +80,30 @@ static int archiveblock_handler(request_rec *r)
     if (!r->header_only)
         ap_rputs("The sample page from mod_archiveblock.c\n", r);
     return OK;
+}
+
+#DEFINE BUFSIZE (256)
+
+static int read_config(const request_rec *r)
+{
+    int rc;
+    apr_file_t *file = NULL;
+    char buf[BUFSIZE];
+
+    /* Note that the tagmap table is allocated from the server pool, but
+       our temporary workspace for reading is allocated from the
+       connection. */
+    rc = apr_file_open(&file, config.mappath, APR_READ, APR_OS_DEFAULT, r->pool);
+    if (rc != APR_SUCCESS) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to open config: %s", config.mappath);
+        return rc;
+    }
+
+    //###
+
+    apr_file_close(file);
+
+    return APR_SUCCESS;
 }
 
 /* Dispatch list for API hooks */
