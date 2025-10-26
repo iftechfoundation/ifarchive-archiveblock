@@ -28,7 +28,8 @@
 #include "ap_config.h"
 
 static int archiveblock_handler(request_rec *r);
-static int read_config(const request_rec *r);
+static apr_status_t check_config(const request_rec *r);
+static apr_status_t read_config(const request_rec *r);
 static void read_config_line(char *ln, const request_rec *r);
 
 typedef struct {
@@ -37,7 +38,9 @@ typedef struct {
 
 static archiveblock_config config;
 
+static apr_thread_mutex_t *tagmap_lock = NULL;
 static apr_table_t *tagmap = NULL;
+static apr_time_t tagmap_mtime = 0;
 
 const char *archiveblock_set_path(cmd_parms *cmd, void *cfg, const char *arg)
 {
@@ -52,8 +55,15 @@ static const command_rec archiveblock_directives[] = {
 
 static void archiveblock_register_hooks(apr_pool_t *p)
 {
+    apr_status_t rc;
+    
     config.mappath = "/Users/zarf/Downloads/mod/archiveblock/blockmap";
 
+    rc = apr_thread_mutex_create(&tagmap_lock, APR_THREAD_MUTEX_DEFAULT, p);
+    if (rc != APR_SUCCESS) {
+        ap_log_perror(APLOG_MARK, APLOG_ERR, 0, p, "Unable to create thread lock");
+    }
+    
     tagmap = apr_table_make(p, 64);
     
     ap_hook_handler(archiveblock_handler, NULL, NULL, APR_HOOK_MIDDLE);
@@ -71,7 +81,7 @@ static int archiveblock_handler(request_rec *r)
     //### works for DECLINED for file responses but not errors
     apr_table_add(r->headers_out, "X-Frotz", "maybe");
 
-    read_config(r);
+    check_config(r);
 
     //### apr_stat()
 
@@ -86,11 +96,44 @@ static int archiveblock_handler(request_rec *r)
     return OK;
 }
 
+static apr_status_t check_config(const request_rec *r)
+{
+    apr_status_t rc;
+    apr_finfo_t finfo;
+    
+    rc = apr_thread_mutex_lock(tagmap_lock);
+    if (rc != APR_SUCCESS) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to lock mutex");
+        return rc;
+    }
+
+    rc = apr_stat(&finfo, config.mappath, APR_FINFO_MTIME, r->pool);
+    if (rc != APR_SUCCESS) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to stat file: %s", config.mappath);
+        apr_thread_mutex_unlock(tagmap_lock);
+        return rc;
+    }
+
+    if (finfo.mtime > tagmap_mtime) {
+        tagmap_mtime = finfo.mtime;
+        rc = read_config(r);
+        /* error already logged */
+    }
+
+    rc = apr_thread_mutex_unlock(tagmap_lock);
+    if (rc != APR_SUCCESS) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to unlock mutex");
+        return rc;
+    }
+
+    return APR_SUCCESS;
+}
+
 #define BUFSIZE (256)
 
-static int read_config(const request_rec *r)
+static apr_status_t read_config(const request_rec *r)
 {
-    int rc;
+    apr_status_t rc;
     apr_file_t *file = NULL;
     char buf[BUFSIZE];
     char *lbuf = NULL;
@@ -169,6 +212,10 @@ static int read_config(const request_rec *r)
 
     apr_file_close(file);
 
+
+    int count = apr_table_elts(tagmap)->nelts;
+    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "Read config, %d entries", count);
+    
     return APR_SUCCESS;
 }
 
