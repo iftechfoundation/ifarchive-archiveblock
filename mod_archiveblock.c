@@ -21,11 +21,13 @@
 **             https://httpd.apache.org/docs/2.4/programs/apxs.html
 */
 
+#include "apr_escape.h"
+#include "apr_strings.h"
+#include "ap_config.h"
 #include "httpd.h"
 #include "http_config.h"
 #include "http_protocol.h"
 #include "http_log.h"
-#include "ap_config.h"
 
 static int archiveblock_handler(request_rec *r);
 static apr_status_t check_config(const request_rec *r);
@@ -99,8 +101,9 @@ static int archiveblock_handler(request_rec *r)
 
     /* We contruct our own 302-redirect response. (If we let Apache
        do it, it would lose our headers.) */
-    
-    char *newurl = "https://ukrestrict.ifarchive.org/if-archive/games/twine/tagged-file.zip"; //###
+
+    const char *escuri = apr_pescape_urlencoded(r->pool, r->uri);
+    const char *newurl = apr_psprintf(r->pool, "https://%s%s", config.restrictdomain, escuri);
     apr_table_add(r->headers_out, "Location", newurl);
     apr_table_add(r->headers_out, "Access-Control-Allow-Origin", "*");
 
