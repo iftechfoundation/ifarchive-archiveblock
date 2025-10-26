@@ -174,7 +174,34 @@ static int read_config(const request_rec *r)
 
 static void read_config_line(char *ln, const request_rec *r)
 {
-    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "### line '%s'", ln);
+    char *cx = ln;
+    char *namex;
+
+    while (*cx && (*cx == ' ' || *cx == '\t'))
+        cx++;
+
+    if (!*cx)
+        return;
+    if (*cx == '#')
+        return;
+
+    namex = cx;
+
+    while (*cx && *cx != '\t')
+        cx++;
+
+    if (!*cx) {
+        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "unrecognized block line: %s", ln);
+        return;
+    }
+
+    *cx = '\0';
+    cx++;
+    
+    while (*cx && (*cx == ' ' || *cx == '\t'))
+        cx++;
+
+    apr_table_set(tagmap, namex, cx);
 }
 
 /* Dispatch list for API hooks */
