@@ -29,6 +29,7 @@
 
 static int archiveblock_handler(request_rec *r);
 static int read_config(const request_rec *r);
+static void read_config_line(char *ln, const request_rec *r);
 
 typedef struct {
     const char *mappath;
@@ -92,21 +93,88 @@ static int read_config(const request_rec *r)
     int rc;
     apr_file_t *file = NULL;
     char buf[BUFSIZE];
+    char *lbuf = NULL;
+    apr_size_t lbufsize, lbuflen;
 
     /* Note that the tagmap table is allocated from the server pool, but
        our temporary workspace for reading is allocated from the
        connection. */
+
+    lbufsize = 2*BUFSIZE;
+    lbuflen = 0;
+    lbuf = apr_palloc(r->pool, lbufsize+1);
+    if (!lbuf) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to allocate %ld bytes for buffer", lbufsize);
+        return APR_ENOMEM;
+    }
+    
     rc = apr_file_open(&file, config.mappath, APR_READ, APR_OS_DEFAULT, r->pool);
     if (rc != APR_SUCCESS) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to open config: %s", config.mappath);
         return rc;
     }
 
-    //###
+    while (TRUE) {
+        apr_size_t len = BUFSIZE;
+        rc = apr_file_read(file, buf, &len);
+        if (rc == APR_EOF) {
+            break;
+        }
+        if (rc != APR_SUCCESS) {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to read config: %s", config.mappath);
+            apr_file_close(file);
+            return rc;
+        }
+
+        if (lbuflen + len > lbufsize) {
+            lbufsize = (lbuflen + len) * 2;
+            char *newlbuf = apr_palloc(r->pool, lbufsize+1);
+            if (!newlbuf) {
+                ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to allocate %ld bytes for buffer", lbufsize);
+                apr_file_close(file);
+                return rc;
+            }
+
+            memcpy(newlbuf, lbuf, lbuflen);
+            lbuf = newlbuf;
+            // allow the old lbuf to be cleaned up with the pool
+        }
+
+        memcpy(lbuf+lbuflen, buf, len);
+        lbuflen += len;
+
+        while (TRUE) {
+            int ix;
+            for (ix=0; ix<lbuflen; ix++) {
+                if (lbuf[ix] == '\n') {
+                    break;
+                }
+            }
+
+            if (ix == lbuflen) {
+                break;
+            }
+
+            lbuf[ix] = '\0';
+            read_config_line(lbuf, r);
+            memmove(lbuf, lbuf+ix+1, lbuflen-(ix+1));
+            lbuflen -= (ix+1);
+        }
+    }
+
+    if (lbuflen > 0) {
+        lbuf[lbuflen] = '\0';
+        read_config_line(lbuf, r);
+    }
 
     apr_file_close(file);
 
     return APR_SUCCESS;
+}
+
+static void read_config_line(char *ln, const request_rec *r)
+{
+    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "### line '%s'", ln);
 }
 
 /* Dispatch list for API hooks */
