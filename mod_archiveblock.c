@@ -34,6 +34,7 @@ static void read_config_line(char *ln, const request_rec *r);
 
 typedef struct {
     const char *mappath;
+    const char *restrictdomain;
 } archiveblock_config;
 
 static archiveblock_config config;
@@ -58,6 +59,7 @@ static void archiveblock_register_hooks(apr_pool_t *p)
     apr_status_t rc;
     
     config.mappath = "/Users/zarf/Downloads/mod/archiveblock/blockmap";
+    config.restrictdomain = "ukrestrict.ifarchive.org";
 
     rc = apr_thread_mutex_create(&tagmap_lock, APR_THREAD_MUTEX_DEFAULT, p);
     if (rc != APR_SUCCESS) {
@@ -75,22 +77,31 @@ static int archiveblock_handler(request_rec *r)
         return DECLINED;
     }
 
-    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "### filename '%s', uri '%s', path_info '%s'", r->filename, r->uri, r->path_info);
-
-    //### works for DECLINED for file responses but not errors
-    apr_table_add(r->headers_out, "X-Frotz", "maybe");
+    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "### filename '%s', uri '%s', hostname '%s'", r->filename, r->uri, r->hostname);
 
     check_config(r);
 
-    if (strcmp(r->uri, "/block/test.html"))
+    const char *tags = apr_table_get(tagmap, r->uri);
+    if (!tags) {
+        /* No safety tags. Allow the regular Apache handling to proceed. */
         return DECLINED;
+    }
     
-    r->content_type = "text/html";
-    apr_table_add(r->headers_out, "X-Zarf", "yes");
+    apr_table_add(r->headers_out, "X-IFArchive-Safety", tags);
 
-    if (!r->header_only)
-        ap_rputs("The sample page from mod_archiveblock.c\n", r);
-    return OK;
+    if (!strcmp(r->hostname, config.restrictdomain)) {
+        /* The request came to the ukrestrict domain. We let it proceed,
+           except that we've added the X-IFArchive-Safety header.
+           (Note that if the request winds up as an error, that
+           header will be lost. But that's fine.) */
+        return DECLINED;
+    }
+
+    char *newurl = "https://ukrestrict.ifarchive.org/if-archive/games/twine/tagged-file.zip"; //###
+    apr_table_add(r->headers_out, "Location", newurl);
+    apr_table_add(r->headers_out, "Access-Control-Allow-Origin", "*");
+
+    return 302;
 }
 
 static apr_status_t check_config(const request_rec *r)
