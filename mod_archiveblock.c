@@ -109,8 +109,9 @@ static int archiveblock_handler(request_rec *r)
     /* We contruct our own 302-redirect response. (If we let Apache
        do it, it would lose our headers.) */
 
-    const char *escuri = apr_pescape_urlencoded(r->pool, r->uri);
-    const char *newurl = apr_psprintf(r->pool, "https://%s%s", config.restrictdomain, escuri);
+    /* Testing indicates we don't need to percent-encode r->uri. */
+    const char *newurl = apr_psprintf(r->pool, "https://%s%s", config.restrictdomain, r->uri);
+    
     apr_table_add(r->headers_out, "Location", newurl);
     apr_table_add(r->headers_out, "Access-Control-Allow-Origin", "*");
 
