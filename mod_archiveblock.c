@@ -45,24 +45,29 @@ static apr_thread_mutex_t *tagmap_lock = NULL;
 static apr_table_t *tagmap = NULL;
 static apr_time_t tagmap_mtime = 0;
 
+/* Handler for setting the mappath. */
 const char *archiveblock_set_map_path(cmd_parms *cmd, void *cfg, const char *arg)
 {
     config.mappath = arg;
     return NULL;
 }
 
+/* Handler for setting the restrictdomain. */
 const char *archiveblock_set_restrict_domain(cmd_parms *cmd, void *cfg, const char *arg)
 {
     config.restrictdomain = arg;
     return NULL;
 }
 
+/* Apache module config directives. */
 static const command_rec archiveblock_directives[] = {
     AP_INIT_TAKE1("ArchiveBlockMapPath", archiveblock_set_map_path, NULL, RSRC_CONF, "The path to the block map."),
     AP_INIT_TAKE1("ArchiveBlockRestrictDomain", archiveblock_set_restrict_domain, NULL, RSRC_CONF, "The domain which handles tagged files."),
     { NULL }
 };
 
+/* Set up the Apache module callbacks.
+ */
 static void archiveblock_register_hooks(apr_pool_t *p)
 {
     apr_status_t rc;
@@ -80,6 +85,12 @@ static void archiveblock_register_hooks(apr_pool_t *p)
     ap_hook_handler(archiveblock_handler, NULL, NULL, APR_HOOK_MIDDLE);
 }
 
+/* The request handler.
+   We check the URI against our table of files (and directories) to block.
+   If we find tags, add them as a X-IFArchive-Safety header, and then
+   redirect to the ukrestrict domain (unless the request was already
+   to that domain).
+ */
 static int archiveblock_handler(request_rec *r)
 {
     if (strcmp(r->handler, "archiveblock")) {
@@ -123,6 +134,9 @@ static int archiveblock_handler(request_rec *r)
     return OK;
 }
 
+/* Check if we need to reload the block file. If it's been updated since
+   our last load, we reload it.
+*/
 static apr_status_t check_config(const request_rec *r)
 {
     apr_status_t rc;
@@ -158,6 +172,9 @@ static apr_status_t check_config(const request_rec *r)
 
 #define BUFSIZE (256)
 
+/* Read the block file into a table.
+   (This must be called under the mutex.)
+*/
 static apr_status_t read_config(const request_rec *r)
 {
     apr_status_t rc;
@@ -246,6 +263,10 @@ static apr_status_t read_config(const request_rec *r)
     return APR_SUCCESS;
 }
 
+/* Parse one line of the block file. Ignore blank lines
+   and comments.
+   (This must be called under the mutex.)
+*/
 static void read_config_line(char *ln, const request_rec *r)
 {
     char *cx = ln;
@@ -278,7 +299,7 @@ static void read_config_line(char *ln, const request_rec *r)
     apr_table_set(tagmap, namex, cx);
 }
 
-/* Dispatch list for API hooks */
+/* Apache module configuration. */
 module AP_MODULE_DECLARE_DATA archiveblock_module = {
     STANDARD20_MODULE_STUFF, 
     NULL,                  /* create per-dir    config structures */
