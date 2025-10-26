@@ -28,6 +28,7 @@
 #include "ap_config.h"
 
 static int archiveblock_handler(request_rec *r);
+static int read_config(const request_rec *r);
 
 typedef struct {
     const char *mappath;
@@ -69,6 +70,8 @@ static int archiveblock_handler(request_rec *r)
     //### works for DECLINED for file responses but not errors
     apr_table_add(r->headers_out, "X-Frotz", "maybe");
 
+    read_config(r);
+
     //### apr_stat()
 
     if (strcmp(r->uri, "/block/test.html"))
@@ -82,7 +85,7 @@ static int archiveblock_handler(request_rec *r)
     return OK;
 }
 
-#DEFINE BUFSIZE (256)
+#define BUFSIZE (256)
 
 static int read_config(const request_rec *r)
 {
