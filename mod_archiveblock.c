@@ -75,15 +75,12 @@ static int archiveblock_handler(request_rec *r)
         return DECLINED;
     }
 
-    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "### config '%s'", config.mappath);
     ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "### filename '%s', uri '%s', path_info '%s'", r->filename, r->uri, r->path_info);
 
     //### works for DECLINED for file responses but not errors
     apr_table_add(r->headers_out, "X-Frotz", "maybe");
 
     check_config(r);
-
-    //### apr_stat()
 
     if (strcmp(r->uri, "/block/test.html"))
         return DECLINED;
