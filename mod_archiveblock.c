@@ -97,11 +97,19 @@ static int archiveblock_handler(request_rec *r)
         return DECLINED;
     }
 
+    /* We contruct our own 302-redirect response. (If we let Apache
+       do it, it would lose our headers.) */
+    
     char *newurl = "https://ukrestrict.ifarchive.org/if-archive/games/twine/tagged-file.zip"; //###
     apr_table_add(r->headers_out, "Location", newurl);
     apr_table_add(r->headers_out, "Access-Control-Allow-Origin", "*");
 
-    return 302;
+    r->status = 302;
+    ap_set_content_type(r, "text/plain");
+    ap_rprintf(r, "File tagged: %s\n", tags);
+    ap_rprintf(r, "Redirecting to: %s\n", newurl);
+    
+    return OK;
 }
 
 static apr_status_t check_config(const request_rec *r)
