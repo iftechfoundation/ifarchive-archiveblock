@@ -45,14 +45,21 @@ static apr_thread_mutex_t *tagmap_lock = NULL;
 static apr_table_t *tagmap = NULL;
 static apr_time_t tagmap_mtime = 0;
 
-const char *archiveblock_set_path(cmd_parms *cmd, void *cfg, const char *arg)
+const char *archiveblock_set_map_path(cmd_parms *cmd, void *cfg, const char *arg)
 {
     config.mappath = arg;
     return NULL;
 }
 
+const char *archiveblock_set_restrict_domain(cmd_parms *cmd, void *cfg, const char *arg)
+{
+    config.restrictdomain = arg;
+    return NULL;
+}
+
 static const command_rec archiveblock_directives[] = {
-    AP_INIT_TAKE1("ArchiveBlockMapPath", archiveblock_set_path, NULL, RSRC_CONF, "The path to the block map."),
+    AP_INIT_TAKE1("ArchiveBlockMapPath", archiveblock_set_map_path, NULL, RSRC_CONF, "The path to the block map."),
+    AP_INIT_TAKE1("ArchiveBlockRestrictDomain", archiveblock_set_restrict_domain, NULL, RSRC_CONF, "The domain which handles tagged files."),
     { NULL }
 };
 
