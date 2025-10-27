@@ -212,7 +212,33 @@ static const char *find_tags_for_uri(request_rec *r, int *redirect)
     }
     if (*cx == ':')
         cx++;
+
+    //### empty string, return null
     return cx;
+}
+
+static int dump_func(void *rec, const char *key, const char *tags)
+{
+    const request_rec *r = rec;
+    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "...%s: \"%s\"", key, tags);
+    return TRUE;
+}
+
+static void dump_tagmap(const request_rec *r)
+{
+    int count;
+    
+    count = apr_table_elts(tagmap_files)->nelts;
+    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "%d file entries:", count);
+    apr_table_do(dump_func, (void *)r, tagmap_files, NULL);
+
+    count = apr_table_elts(tagmap_dirs)->nelts;
+    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "%d dir entries:", count);
+    apr_table_do(dump_func, (void *)r, tagmap_dirs, NULL);
+
+    count = apr_table_elts(tagmap_trees)->nelts;
+    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "%d tree entries:", count);
+    apr_table_do(dump_func, (void *)r, tagmap_trees, NULL);
 }
 
 /* Check if we need to reload the block file. If it's been updated since
@@ -240,6 +266,7 @@ static apr_status_t check_config(const request_rec *r)
         tagmap_mtime = finfo.mtime;
         rc = read_config(r);
         /* error already logged */
+        dump_tagmap(r);
     }
 
     rc = apr_thread_mutex_unlock(tagmap_lock);
@@ -340,7 +367,6 @@ static apr_status_t read_config(const request_rec *r)
     }
 
     apr_file_close(file);
-
 
     int filecount = apr_table_elts(tagmap_files)->nelts;
     int dircount = apr_table_elts(tagmap_dirs)->nelts;
