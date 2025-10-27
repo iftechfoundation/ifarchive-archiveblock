@@ -30,6 +30,7 @@
 #include "http_log.h"
 
 static int archiveblock_handler(request_rec *r);
+static const char *find_tags_for_uri(request_rec *r, int *redirect);
 static apr_status_t check_config(const request_rec *r);
 static apr_status_t read_config(const request_rec *r);
 static void read_config_line(char *ln, const request_rec *r);
@@ -109,19 +110,26 @@ static int archiveblock_handler(request_rec *r)
 
     check_config(r);
 
-    const char *tags = apr_table_get(tagmap_files, r->uri);
-    if (!tags) {
+    int redirect = FALSE;
+    const char *tags = find_tags_for_uri(r, &redirect);
+    if (!tags && !redirect) {
         /* No safety tags. Allow the regular Apache handling to proceed. */
         return DECLINED;
     }
     
     apr_table_add(r->headers_out, "X-IFArchive-Safety", tags);
-
-    if (!strcmp(r->hostname, config.restrictdomain)) {
-        /* The request came to the ukrestrict domain. We let it proceed,
-           except that we've added the X-IFArchive-Safety header.
+    if (!redirect) {
+        /* Tags, but not ones that are restricted in the UK. We let it
+           proceed, except that we've added the X-IFArchive-Safety header.
            (Note that if the request winds up as an error, that
            header will be lost. But that's fine.) */
+        return DECLINED;
+    }
+
+    if (!strcmp(r->hostname, config.restrictdomain)) {
+        /* The request came to the ukrestrict domain. Again, let it
+           proceed with the magic header. (UK geoblocking will happen
+           at the Cloudflare level.) */
         return DECLINED;
     }
 
@@ -140,6 +148,50 @@ static int archiveblock_handler(request_rec *r)
     ap_rprintf(r, "Redirecting to: %s\n", newurl);
     
     return OK;
+}
+
+/* See whether we have safety tags for the given request URI.
+   If the tags include any that must be blocked in the UK, we also
+   set *redirect.
+*/
+static const char *find_tags_for_uri(request_rec *r, int *redirect)
+{
+    const char *tags = NULL;
+
+    tags = apr_table_get(tagmap_files, r->uri);
+    
+    if (!tags) {
+        char *uri = apr_pstrdup(r->pool, r->uri);
+        int len = strlen(uri);
+        int backcount = 0;
+        while (len >= 0) {
+            while (len >= 1 && uri[len-1] != '/')
+                len--;
+            if (len) {
+                uri[len-1] = '\0';
+                len--;
+                if (backcount == 0) {
+                    tags = apr_table_get(tagmap_dirs, uri);
+                    if (tags)
+                        break;
+                }
+                tags = apr_table_get(tagmap_trees, uri);
+                if (tags)
+                    break;
+                backcount++;
+            }
+            if (tags)
+                break;
+        }
+    }
+    
+    if (!tags) {
+        *redirect = FALSE;
+        return NULL;
+    }
+
+    *redirect = TRUE; //###
+    return tags;
 }
 
 /* Check if we need to reload the block file. If it's been updated since
