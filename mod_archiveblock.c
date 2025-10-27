@@ -42,7 +42,7 @@ typedef struct {
 static archiveblock_config config;
 
 static apr_thread_mutex_t *tagmap_lock = NULL;
-static apr_table_t *tagmap = NULL;
+static apr_table_t *tagmap_files = NULL;
 static apr_time_t tagmap_mtime = 0;
 
 /* Handler for setting the mappath. */
@@ -80,7 +80,7 @@ static void archiveblock_register_hooks(apr_pool_t *p)
         ap_log_perror(APLOG_MARK, APLOG_ERR, 0, p, "Unable to create thread lock");
     }
     
-    tagmap = apr_table_make(p, 64);
+    tagmap_files = apr_table_make(p, 64);
     
     ap_hook_handler(archiveblock_handler, NULL, NULL, APR_HOOK_MIDDLE);
 }
@@ -101,7 +101,7 @@ static int archiveblock_handler(request_rec *r)
 
     check_config(r);
 
-    const char *tags = apr_table_get(tagmap, r->uri);
+    const char *tags = apr_table_get(tagmap_files, r->uri);
     if (!tags) {
         /* No safety tags. Allow the regular Apache handling to proceed. */
         return DECLINED;
@@ -257,7 +257,7 @@ static apr_status_t read_config(const request_rec *r)
     apr_file_close(file);
 
 
-    int count = apr_table_elts(tagmap)->nelts;
+    int count = apr_table_elts(tagmap_files)->nelts;
     ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "Read config, %d entries", count);
     
     return APR_SUCCESS;
@@ -296,7 +296,7 @@ static void read_config_line(char *ln, const request_rec *r)
     while (*cx && (*cx == ' ' || *cx == '\t'))
         cx++;
 
-    apr_table_set(tagmap, namex, cx);
+    apr_table_set(tagmap_files, namex, cx);
 }
 
 /* Apache module configuration. */
