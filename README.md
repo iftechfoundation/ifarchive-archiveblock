@@ -14,7 +14,7 @@ This plugin does not handle the geolocation check itself. The entire process loo
 
 [ifmap]: https://github.com/iftechfoundation/ifarchive-ifmap-py
 
-Why an Apache plugin? The redirect step is a bit too messy to handle with standard Apache tools like [`mod_alias`][] or [`mod_rewrite`][]. The tricky requirements:
+Why an Apache plugin? The redirect step is a bit too messy to handle with standard Apache tools like [`mod_alias`][mod_alias] or [`mod_rewrite`][mod_rewrite]. The tricky requirements:
 
 [mod_alias]: https://httpd.apache.org/docs/current/mod/mod_alias.html
 [mod_rewrite]: https://httpd.apache.org/docs/current/mod/mod_rewrite.html
@@ -22,7 +22,7 @@ Why an Apache plugin? The redirect step is a bit too messy to handle with standa
 - The map file may be updated at any time. We must watch it and reload if the file timestamp changes.
 - We must be able to tag entire directories, since the tagging process is being worked on incrementally. (Many directories have not even been looked at yet.)
 - All tagged files must get a `X-IFArchive-Safety` HTTP header.
-- Redirects must have the `Access-Control-Allow-Origin: *` header, so that client-side services like [`iplayif.com`][] can detect them.
+- Redirects must have the `Access-Control-Allow-Origin: *` header, so that client-side services like [`iplayif.com`][iplayif.com] can detect them.
 
 [iplayif.com]: https://iplayif.com/
 
