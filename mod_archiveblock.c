@@ -348,7 +348,7 @@ static apr_status_t read_config(const request_rec *r)
 static void read_config_line(char *ln, const request_rec *r)
 {
     char *cx = ln;
-    char *key;
+    char *key, *tags;
 
     while (*cx && (*cx == ' ' || *cx == '\t'))
         cx++;
@@ -374,6 +374,14 @@ static void read_config_line(char *ln, const request_rec *r)
     while (*cx && (*cx == ' ' || *cx == '\t'))
         cx++;
 
+    tags = cx;
+
+    /* Make sure the tags string contains a colon. */
+    if (!strchr(tags, ':')) {
+        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "block line lacks colon: %s", tags);
+        return;
+    }
+
     /* If the key ends with slash-star, it's a dir entry. If it ends with
        slash-star-star, it's a subtree entry. If it ends with a bare slash
        somebody screwed up.
@@ -385,14 +393,14 @@ static void read_config_line(char *ln, const request_rec *r)
     }
     else if (keylen > 2 && key[keylen-2] == '/' && key[keylen-1] == '*') {
         key[keylen-2] = '\0';
-        apr_table_set(tagmap_dirs, key, cx);
+        apr_table_set(tagmap_dirs, key, tags);
     }
     else if (keylen > 3 && key[keylen-3] == '/' && key[keylen-2] == '*' && key[keylen-1] == '*') {
         key[keylen-3] = '\0';
-        apr_table_set(tagmap_trees, key, cx);
+        apr_table_set(tagmap_trees, key, tags);
     }
     else {
-        apr_table_set(tagmap_files, key, cx);
+        apr_table_set(tagmap_files, key, tags);
     }
 }
 
