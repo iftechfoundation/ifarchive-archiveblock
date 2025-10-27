@@ -42,8 +42,14 @@ typedef struct {
 static archiveblock_config config;
 
 static apr_thread_mutex_t *tagmap_lock = NULL;
-static apr_table_t *tagmap_files = NULL;
 static apr_time_t tagmap_mtime = 0;
+
+/* Entries for individual files */
+static apr_table_t *tagmap_files = NULL;
+/* Entries that cover all the files in a directory */
+static apr_table_t *tagmap_dirs = NULL;
+/* Entries that cover all the files in a directory *tree* */
+static apr_table_t *tagmap_trees = NULL;
 
 /* Handler for setting the mappath. */
 const char *archiveblock_set_map_path(cmd_parms *cmd, void *cfg, const char *arg)
@@ -81,6 +87,8 @@ static void archiveblock_register_hooks(apr_pool_t *p)
     }
     
     tagmap_files = apr_table_make(p, 64);
+    tagmap_dirs = apr_table_make(p, 64);
+    tagmap_trees = apr_table_make(p, 64);
     
     ap_hook_handler(archiveblock_handler, NULL, NULL, APR_HOOK_MIDDLE);
 }
@@ -202,6 +210,8 @@ static apr_status_t read_config(const request_rec *r)
     }
 
     apr_table_clear(tagmap_files);
+    apr_table_clear(tagmap_dirs);
+    apr_table_clear(tagmap_trees);
 
     while (TRUE) {
         apr_size_t len = BUFSIZE;
@@ -259,8 +269,10 @@ static apr_status_t read_config(const request_rec *r)
     apr_file_close(file);
 
 
-    int count = apr_table_elts(tagmap_files)->nelts;
-    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "Read config, %d entries", count);
+    int filecount = apr_table_elts(tagmap_files)->nelts;
+    int dircount = apr_table_elts(tagmap_dirs)->nelts;
+    int treecount = apr_table_elts(tagmap_trees)->nelts;
+    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "Read config: %d files, %d dirs, %d trees", filecount, dircount, treecount);
     
     return APR_SUCCESS;
 }
