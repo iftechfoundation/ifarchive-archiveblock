@@ -111,7 +111,7 @@ static int archiveblock_handler(request_rec *r)
     check_config(r);
 
     apr_finfo_t finfo;
-    apr_status_t rc = apr_stat(&finfo, r->filename, APR_FINFO_TYPE|APR_FINFO_LINK, r->pool);
+    apr_status_t rc = apr_stat(&finfo, r->filename, APR_FINFO_TYPE, r->pool);
     if (rc != APR_SUCCESS || finfo.filetype != APR_REG) {
         /* File does not exist, or it's a directory. We don't restrict
            these; allow regular Apache handling to proceed.
