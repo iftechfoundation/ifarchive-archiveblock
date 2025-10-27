@@ -106,9 +106,19 @@ static int archiveblock_handler(request_rec *r)
         return DECLINED;
     }
 
-    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "### filename '%s', uri '%s', hostname '%s'", r->filename, r->uri, r->hostname);
+    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "### filename '%s', canon '%s', uri '%s', hostname '%s'", r->filename, r->canonical_filename, r->uri, r->hostname);
 
     check_config(r);
+
+    apr_finfo_t finfo;
+    apr_status_t rc = apr_stat(&finfo, r->filename, APR_FINFO_TYPE|APR_FINFO_LINK, r->pool);
+    if (rc != APR_SUCCESS || finfo.filetype != APR_REG) {
+        /* File does not exist, or it's a directory. We don't restrict
+           these; allow regular Apache handling to proceed.
+           (If the file is a symlink to a restricted file, it should be
+           listed in the map with the same tags as the destination.) */
+        return DECLINED;
+    }
 
     int redirect = FALSE;
     const char *tags = find_tags_for_uri(r, &redirect);
