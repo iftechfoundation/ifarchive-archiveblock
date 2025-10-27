@@ -197,8 +197,9 @@ static const char *find_tags_for_uri(request_rec *r, int *redirect)
                 break;
         }
     }
-    
-    if (!tags) {
+
+    /* An empty tags string means no tags. */
+    if (!tags || *tags == '\0') {
         *redirect = FALSE;
         return NULL;
     }
@@ -213,7 +214,6 @@ static const char *find_tags_for_uri(request_rec *r, int *redirect)
     if (*cx == ':')
         cx++;
 
-    //### empty string, return null
     return cx;
 }
 
@@ -224,6 +224,7 @@ static int dump_func(void *rec, const char *key, const char *tags)
     return TRUE;
 }
 
+/* Log the contents of the the tagmaps. For debug only. */
 static void dump_tagmap(const request_rec *r)
 {
     int count;
@@ -266,7 +267,7 @@ static apr_status_t check_config(const request_rec *r)
         tagmap_mtime = finfo.mtime;
         rc = read_config(r);
         /* error already logged */
-        dump_tagmap(r);
+        dump_tagmap(r); //###
     }
 
     rc = apr_thread_mutex_unlock(tagmap_lock);
