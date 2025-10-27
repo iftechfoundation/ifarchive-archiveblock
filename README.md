@@ -68,11 +68,11 @@ The second part of the line is zero or more *FLAG* characters, followed by a (ma
 
 At present, the only meaningful *FLAG* character is `u`, meaning that the file must be restricted in the UK. If there is no `u` before the colon, the file has tags but none of the tags are UK-restricted.
 
-(It's the [ifmap][] script's job to decide which tags are UK-restricted. This plugin just looks for the `u:` prefix.)
+(It's the [ifmap][] script's job to decide which tags are UK-restricted. This plugin just looks for the `u:` prefix.) (In the future we may need to restrict files in other regions, such as the EU.)
 
 ## Building the plugin
 
-You will need the `[apxs][]` tool. If you're on Linux, you may need to install the `apache2-dev` package.
+You will need the [`apxs`][apxs] tool. If you're on Linux, you may need to install the `apache2-dev` package.
 
 [apxs]: https://httpd.apache.org/docs/2.4/programs/apxs.html
 
