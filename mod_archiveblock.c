@@ -198,8 +198,9 @@ static const char *find_tags_for_uri(request_rec *r, int *redirect)
         }
     }
 
-    /* An empty tags string means no tags. */
-    if (!tags || *tags == '\0') {
+    /* An empty tags string means no tags. (Empty after the colon,
+       in practice.) */
+    if (!tags || *tags == '\0' || !strcmp(tags, ":")) {
         *redirect = FALSE;
         return NULL;
     }
@@ -377,8 +378,8 @@ static apr_status_t read_config(const request_rec *r)
     return APR_SUCCESS;
 }
 
-/* Parse one line of the block file. Ignore blank lines
-   and comments.
+/* Parse one line of the block file. Ignore blank lines and comments.
+   This alters the line as it works. (Inserting nulls to break it up.)
    (This must be called under the mutex.)
 */
 static void read_config_line(char *ln, const request_rec *r)
@@ -411,6 +412,13 @@ static void read_config_line(char *ln, const request_rec *r)
         cx++;
 
     tags = cx;
+
+    /* Right-strip whitespace. */
+    int taglen = strlen(tags);
+    while (taglen > 0 && (tags[taglen-1] == ' ' || tags[taglen-1] == '\t')) {
+        tags[taglen-1] = '\0';
+        taglen--;
+    }
 
     /* Make sure the tags string contains a colon. */
     if (!strchr(tags, ':')) {
