@@ -201,6 +201,8 @@ static apr_status_t read_config(const request_rec *r)
         return rc;
     }
 
+    apr_table_clear(tagmap_files);
+
     while (TRUE) {
         apr_size_t len = BUFSIZE;
         rc = apr_file_read(file, buf, &len);
