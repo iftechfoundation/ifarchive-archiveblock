@@ -167,6 +167,8 @@ static const char *find_tags_for_uri(request_rec *r, int *redirect)
         while (len >= 0) {
             while (len >= 1 && uri[len-1] != '/')
                 len--;
+            if (len == 1)
+                break;
             if (len) {
                 uri[len-1] = '\0';
                 len--;
