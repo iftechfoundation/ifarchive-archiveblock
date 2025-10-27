@@ -284,7 +284,7 @@ static apr_status_t read_config(const request_rec *r)
 static void read_config_line(char *ln, const request_rec *r)
 {
     char *cx = ln;
-    char *namex;
+    char *key;
 
     while (*cx && (*cx == ' ' || *cx == '\t'))
         cx++;
@@ -294,7 +294,7 @@ static void read_config_line(char *ln, const request_rec *r)
     if (*cx == '#')
         return;
 
-    namex = cx;
+    key = cx;
 
     while (*cx && *cx != '\t')
         cx++;
@@ -310,7 +310,26 @@ static void read_config_line(char *ln, const request_rec *r)
     while (*cx && (*cx == ' ' || *cx == '\t'))
         cx++;
 
-    apr_table_set(tagmap_files, namex, cx);
+    /* If the key ends with slash-star, it's a dir entry. If it ends with
+       slash-star-star, it's a subtree entry. If it ends with a bare slash
+       somebody screwed up.
+       In all these cases, we trim the slash-star marker. */
+    int keylen = strlen(key);
+    
+    if (keylen > 1 && key[keylen-1] == '/') {
+        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "block line ends with slash: %s", key);
+    }
+    else if (keylen > 2 && key[keylen-2] == '/' && key[keylen-1] == '*') {
+        key[keylen-2] = '\0';
+        apr_table_set(tagmap_dirs, key, cx);
+    }
+    else if (keylen > 3 && key[keylen-3] == '/' && key[keylen-2] == '*' && key[keylen-1] == '*') {
+        key[keylen-3] = '\0';
+        apr_table_set(tagmap_trees, key, cx);
+    }
+    else {
+        apr_table_set(tagmap_files, key, cx);
+    }
 }
 
 /* Apache module configuration. */
