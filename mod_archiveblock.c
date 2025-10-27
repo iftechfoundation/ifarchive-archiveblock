@@ -167,6 +167,7 @@ static int archiveblock_handler(request_rec *r)
 static const char *find_tags_for_uri(request_rec *r, int *redirect)
 {
     const char *tags = NULL;
+    const char *cx;
 
     tags = apr_table_get(tagmap_files, r->uri);
     
@@ -202,8 +203,16 @@ static const char *find_tags_for_uri(request_rec *r, int *redirect)
         return NULL;
     }
 
-    *redirect = TRUE; //###
-    return tags;
+    /* Advance past the "FLAG:" prefix. If we find a "u" flag, we're
+       redirecting. */
+    *redirect = FALSE;
+    for (cx=tags; *cx && *cx != ':'; cx++) {
+        if (*cx == 'u')
+            *redirect = TRUE;
+    }
+    if (*cx == ':')
+        cx++;
+    return cx;
 }
 
 /* Check if we need to reload the block file. If it's been updated since
