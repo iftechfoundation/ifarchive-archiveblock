@@ -106,8 +106,6 @@ static int archiveblock_handler(request_rec *r)
         return DECLINED;
     }
 
-    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "### filename '%s', canon '%s', uri '%s', hostname '%s'", r->filename, r->canonical_filename, r->uri, r->hostname);
-
     check_config(r);
 
     apr_finfo_t finfo;
