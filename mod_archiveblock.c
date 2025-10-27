@@ -268,7 +268,8 @@ static apr_status_t check_config(const request_rec *r)
         tagmap_mtime = finfo.mtime;
         rc = read_config(r);
         /* error already logged */
-        dump_tagmap(r); //###
+        if (FALSE)
+            dump_tagmap(r);
     }
 
     rc = apr_thread_mutex_unlock(tagmap_lock);
