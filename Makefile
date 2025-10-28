@@ -4,8 +4,9 @@
 ##
 
 builddir=.
-top_srcdir=/opt/homebrew/opt/httpd
+#top_srcdir=/opt/homebrew/opt/httpd
 #top_builddir=/opt/homebrew/opt/httpd
+top_srcdir=/opt/homebrew/Cellar/httpd/2.4.65/lib/httpd
 top_builddir=/opt/homebrew/Cellar/httpd/2.4.65/lib/httpd
 include /opt/homebrew/opt/httpd/lib/httpd/build/special.mk
 
