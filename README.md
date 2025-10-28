@@ -19,10 +19,10 @@ Why an Apache plugin? The redirect step is a bit too messy to handle with standa
 [mod_alias]: https://httpd.apache.org/docs/current/mod/mod_alias.html
 [mod_rewrite]: https://httpd.apache.org/docs/current/mod/mod_rewrite.html
 
-- The map file may be updated at any time. We must watch it and reload if the file timestamp changes.
+- The map file may be updated at any time. We must watch it and reload if the file timestamp changes. (This does not require an Apache restart.)
 - We must be able to tag entire directories, since the tagging process is being worked on incrementally. (Many directories have not even been looked at yet.)
-- All tagged files must get a `X-IFArchive-Safety` HTTP header.
-- Redirects must have the `Access-Control-Allow-Origin: *` header, so that client-side services like [`iplayif.com`][iplayif.com] can detect them.
+- All tagged files must get a `X-IFArchive-Safety` HTTP header listing the tags.
+- Redirects must have the `X-IFArchive-Safety` header, and also `Access-Control-Allow-Origin: *`. (So that client-side services like [`iplayif.com`][iplayif.com] can detect them.)
 
 [iplayif.com]: https://iplayif.com/
 
