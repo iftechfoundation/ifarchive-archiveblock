@@ -4,11 +4,9 @@
 ##
 
 builddir=.
-#top_srcdir=/opt/homebrew/opt/httpd
-#top_builddir=/opt/homebrew/opt/httpd
-top_srcdir=/opt/homebrew/Cellar/httpd/2.4.65/lib/httpd
-top_builddir=/opt/homebrew/Cellar/httpd/2.4.65/lib/httpd
-include /opt/homebrew/opt/httpd/lib/httpd/build/special.mk
+top_srcdir=/usr/share/apache2
+top_builddir=/usr/share/apache2
+include /usr/share/apache2/build/special.mk
 
 #   the used tools
 APACHECTL=apachectl
