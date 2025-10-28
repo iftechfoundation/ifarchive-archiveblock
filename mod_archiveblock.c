@@ -68,7 +68,7 @@ static void archiveblock_register_hooks(apr_pool_t *p)
     apr_status_t rc;
 
     /* Set default config parameters. */
-    config.mappath = "/Users/zarf/Downloads/mod/archiveblock/blockmap";
+    config.mappath = "/var/ifarchive/lib/blocktag.map";
     config.restrictdomain = "ukrestrict.ifarchive.org";
 
     rc = apr_thread_mutex_create(&tagmap_lock, APR_THREAD_MUTEX_DEFAULT, p);
