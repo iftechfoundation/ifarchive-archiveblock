@@ -30,6 +30,20 @@ Happily, the [Apache C API][modapi] for modules is powerful enough to do what we
 
 [modapi]: https://httpd.apache.org/docs/2.4/developer/modguide.html
 
+## Configuration
+
+The plugin has two configuration parameters. Both must be used at the server level; they cannot be customized per-directory.
+
+```
+	ArchiveBlockMapPath /var/ifarchive/lib/blocktag.map
+	# The path to the block map file.
+	
+	ArchiveBlockRestrictDomain ukrestrict.ifarchive.org
+	# The domain which handles tagged files.
+```
+
+The default values are correct for the live Archive.
+
 ## The map file
 
 The map file syntax can charitably be described as "dank". It's meant to be parsed by relatively simple C code.

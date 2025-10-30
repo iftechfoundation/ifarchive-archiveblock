@@ -56,7 +56,7 @@ const char *archiveblock_set_restrict_domain(cmd_parms *cmd, void *cfg, const ch
 
 /* Apache module config directives. */
 static const command_rec archiveblock_directives[] = {
-    AP_INIT_TAKE1("ArchiveBlockMapPath", archiveblock_set_map_path, NULL, RSRC_CONF, "The path to the block map."),
+    AP_INIT_TAKE1("ArchiveBlockMapPath", archiveblock_set_map_path, NULL, RSRC_CONF, "The path to the block map file."),
     AP_INIT_TAKE1("ArchiveBlockRestrictDomain", archiveblock_set_restrict_domain, NULL, RSRC_CONF, "The domain which handles tagged files."),
     { NULL }
 };
