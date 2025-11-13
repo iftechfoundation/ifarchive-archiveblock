@@ -105,10 +105,14 @@ LoadModule archiveblock_module lib/httpd/modules/mod_archiveblock.so
 
 <IfModule archiveblock_module>
   <Directory "/var/ifarchive/htdocs/if-archive">
-    SetHandler archiveblock
+    <If "-f '%{REQUEST_FILENAME}'">
+      SetHandler archiveblock
+    </If>
   </Directory>
 </IfModule>
 ```
 
-The plugin only applies to archived files (the `/if-archive` directory), *not* to `/indexes` or `/misc`. We do not restrict file *listings*, only the files themselves.
+The `<Directory>` directive means that the plugin only applies to archived files (the `/if-archive` directory), *not* to `/indexes` or `/misc`. We do not restrict file *listings*, only the files themselves.
+
+The `<If>` directive ensures that the plugin applies only to files (and symlinks to files), not directories. This prevents the plugin from interfering with Apache's `mod_autoindex` directory generator. I don't know why it interferes, but it does.
 
