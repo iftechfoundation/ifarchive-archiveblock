@@ -103,7 +103,10 @@ static int archiveblock_handler(request_rec *r)
         /* File does not exist, or it's a directory. We don't restrict
            these; allow regular Apache handling to proceed.
            (If the file is a symlink to a restricted file, it should be
-           listed in the map with the same tags as the destination.) */
+           listed in the map with the same tags as the destination.)
+           (In practice we only apply this handler to regular files anyway,
+           so as not to mess up Apache's autoindex module. So this test
+           never fails.) */
         return DECLINED;
     }
 
