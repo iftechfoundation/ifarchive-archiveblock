@@ -94,6 +94,11 @@ static int archiveblock_handler(request_rec *r)
     if (strcmp(r->handler, "archiveblock")) {
         return DECLINED;
     }
+    
+    if (strcmp(r->hostname, "ifarchive.org")) {
+        const char *relheader = apr_psprintf(r->pool, "<https://%s%s>; rel=\"canonical\"", "ifarchive.org", r->uri);
+        apr_table_add(r->headers_out, "Link", relheader);
+    }
 
     check_config(r);
 
