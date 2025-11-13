@@ -24,6 +24,7 @@ static void read_config_line(char *ln, const request_rec *r);
 /* Struct for module configuration parameters */
 typedef struct {
     const char *mappath;        /* path to the map file */
+    const char *rootdomain;     /* canonical domain */
     const char *restrictdomain; /* domain to redirect to for geoblock check */
 } archiveblock_config;
 
@@ -47,6 +48,13 @@ const char *archiveblock_set_map_path(cmd_parms *cmd, void *cfg, const char *arg
     return NULL;
 }
 
+/* Handler for setting the rootdomain. */
+const char *archiveblock_set_root_domain(cmd_parms *cmd, void *cfg, const char *arg)
+{
+    config.rootdomain = arg;
+    return NULL;
+}
+
 /* Handler for setting the restrictdomain. */
 const char *archiveblock_set_restrict_domain(cmd_parms *cmd, void *cfg, const char *arg)
 {
@@ -57,6 +65,7 @@ const char *archiveblock_set_restrict_domain(cmd_parms *cmd, void *cfg, const ch
 /* Apache module config directives. */
 static const command_rec archiveblock_directives[] = {
     AP_INIT_TAKE1("ArchiveBlockMapPath", archiveblock_set_map_path, NULL, RSRC_CONF, "The path to the block map file."),
+    AP_INIT_TAKE1("ArchiveBlockRootDomain", archiveblock_set_root_domain, NULL, RSRC_CONF, "The root domain."),
     AP_INIT_TAKE1("ArchiveBlockRestrictDomain", archiveblock_set_restrict_domain, NULL, RSRC_CONF, "The domain which handles tagged files."),
     { NULL }
 };
@@ -69,6 +78,7 @@ static void archiveblock_register_hooks(apr_pool_t *p)
 
     /* Set default config parameters. */
     config.mappath = "/var/ifarchive/lib/blocktag.map";
+    config.rootdomain = "ifarchive.org";
     config.restrictdomain = "ukrestrict.ifarchive.org";
 
     rc = apr_thread_mutex_create(&tagmap_lock, APR_THREAD_MUTEX_DEFAULT, p);
@@ -94,9 +104,13 @@ static int archiveblock_handler(request_rec *r)
     if (strcmp(r->handler, "archiveblock")) {
         return DECLINED;
     }
-    
-    if (strcmp(r->hostname, "ifarchive.org")) {
-        const char *relheader = apr_psprintf(r->pool, "<https://%s%s>; rel=\"canonical\"", "ifarchive.org", r->uri);
+
+    /* If the request is not to the root domain, send a header indicating
+       that the root domain is canonical.
+       https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls
+    */
+    if (strcmp(r->hostname, config.rootdomain)) {
+        const char *relheader = apr_psprintf(r->pool, "<https://%s%s>; rel=\"canonical\"", config.rootdomain, r->uri);
         apr_table_add(r->headers_out, "Link", relheader);
     }
 
