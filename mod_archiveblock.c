@@ -73,7 +73,7 @@ static void archiveblock_register_hooks(apr_pool_t *p)
 
     rc = apr_thread_mutex_create(&tagmap_lock, APR_THREAD_MUTEX_DEFAULT, p);
     if (rc != APR_SUCCESS) {
-        ap_log_perror(APLOG_MARK, APLOG_ERR, 0, p, "Unable to create thread lock");
+        ap_log_perror(APLOG_MARK, APLOG_ERR, 0, p, "ArchiveBlock: Unable to create thread lock");
     }
     
     tagmap_files = apr_table_make(p, 64);
@@ -240,13 +240,13 @@ static apr_status_t check_config(const request_rec *r)
     
     rc = apr_thread_mutex_lock(tagmap_lock);
     if (rc != APR_SUCCESS) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to lock mutex");
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "ArchiveBlock: Unable to lock mutex");
         return rc;
     }
 
     rc = apr_stat(&finfo, config.mappath, APR_FINFO_MTIME, r->pool);
     if (rc != APR_SUCCESS) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to stat file: %s", config.mappath);
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "ArchiveBlock: Unable to stat file: %s", config.mappath);
         apr_thread_mutex_unlock(tagmap_lock);
         return rc;
     }
@@ -261,7 +261,7 @@ static apr_status_t check_config(const request_rec *r)
 
     rc = apr_thread_mutex_unlock(tagmap_lock);
     if (rc != APR_SUCCESS) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to unlock mutex");
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "ArchiveBlock: Unable to unlock mutex");
         return rc;
     }
 
@@ -289,13 +289,13 @@ static apr_status_t read_config(const request_rec *r)
     lbuflen = 0;
     lbuf = apr_palloc(r->pool, lbufsize+1);
     if (!lbuf) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to allocate %ld bytes for buffer", lbufsize);
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "ArchiveBlock: Unable to allocate %ld bytes for buffer", lbufsize);
         return APR_ENOMEM;
     }
     
     rc = apr_file_open(&file, config.mappath, APR_READ, APR_OS_DEFAULT, r->pool);
     if (rc != APR_SUCCESS) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to open config: %s", config.mappath);
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "ArchiveBlock: Unable to open config: %s", config.mappath);
         return rc;
     }
 
@@ -310,7 +310,7 @@ static apr_status_t read_config(const request_rec *r)
             break;
         }
         if (rc != APR_SUCCESS) {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to read config: %s", config.mappath);
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "ArchiveBlock: Unable to read config: %s", config.mappath);
             apr_file_close(file);
             return rc;
         }
@@ -319,7 +319,7 @@ static apr_status_t read_config(const request_rec *r)
             lbufsize = (lbuflen + len) * 2;
             char *newlbuf = apr_palloc(r->pool, lbufsize+1);
             if (!newlbuf) {
-                ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "Unable to allocate %ld bytes for buffer", lbufsize);
+                ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "ArchiveBlock: Unable to allocate %ld bytes for buffer", lbufsize);
                 apr_file_close(file);
                 return rc;
             }
@@ -361,7 +361,7 @@ static apr_status_t read_config(const request_rec *r)
     int filecount = apr_table_elts(tagmap_files)->nelts;
     int dircount = apr_table_elts(tagmap_dirs)->nelts;
     int treecount = apr_table_elts(tagmap_trees)->nelts;
-    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "Read config: %d files, %d dirs, %d trees", filecount, dircount, treecount);
+    ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, "ArchiveBlock: Read config: %d files, %d dirs, %d trees", filecount, dircount, treecount);
     
     return APR_SUCCESS;
 }
