@@ -5,6 +5,7 @@
 **
 **  Docs at: https://httpd.apache.org/docs/2.4/developer/modguide.html
 **           https://httpd.apache.org/docs/2.4/programs/apxs.html
+**           https://github.com/apache/httpd/blob/trunk/modules/examples/
 */
 
 #include "apr_escape.h"
@@ -15,6 +16,7 @@
 #include "http_protocol.h"
 #include "http_log.h"
 
+static void archiveblock_child_init(apr_pool_t *p, server_rec *s);
 static int archiveblock_handler(request_rec *r);
 static const char *find_tags_for_uri(request_rec *r, int *redirect);
 static apr_status_t check_config(const request_rec *r);
@@ -90,7 +92,15 @@ static void archiveblock_register_hooks(apr_pool_t *p)
     tagmap_dirs = apr_table_make(p, 64);
     tagmap_trees = apr_table_make(p, 64);
     
+    ap_hook_child_init(archiveblock_child_init, NULL, NULL, APR_HOOK_MIDDLE);
     ap_hook_handler(archiveblock_handler, NULL, NULL, APR_HOOK_MIDDLE);
+}
+
+/* This hook is called when a child process (not thread!) is spawned.
+ */
+static void archiveblock_child_init(apr_pool_t *p, server_rec *s)
+{
+    ap_log_perror(APLOG_MARK, APLOG_NOTICE, 0, p, "ArchiveBlock: ### child_init");
 }
 
 /* The request handler.
