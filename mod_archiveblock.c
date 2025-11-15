@@ -5,6 +5,7 @@
 **
 **  Docs at: https://httpd.apache.org/docs/2.4/developer/modguide.html
 **           https://httpd.apache.org/docs/2.4/programs/apxs.html
+**           https://apr.apache.org/docs/apr/1.4/modules.html
 **           https://github.com/apache/httpd/blob/trunk/modules/examples/
 */
 
@@ -17,6 +18,7 @@
 #include "http_log.h"
 
 static void archiveblock_child_init(apr_pool_t *p, server_rec *s);
+static apr_status_t archiveblock_child_exit(void *data);
 static int archiveblock_handler(request_rec *r);
 static const char *find_tags_for_uri(request_rec *r, int *redirect);
 static apr_status_t check_config(const request_rec *r);
@@ -101,6 +103,20 @@ static void archiveblock_register_hooks(apr_pool_t *p)
 static void archiveblock_child_init(apr_pool_t *p, server_rec *s)
 {
     ap_log_perror(APLOG_MARK, APLOG_NOTICE, 0, p, "ArchiveBlock: ### child_init");
+
+    apr_pool_cleanup_register(p, s, archiveblock_child_exit, archiveblock_child_exit);
+}
+
+/* The child_init() call above sets this callback to run when the process
+   exits. It's also called when the process forks and is about to exec,
+   which I don't think a child process ever does, but we'll set it up
+   anyhow.
+*/
+static apr_status_t archiveblock_child_exit(void *data)
+{
+    server_rec *s = data;
+    ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, s, "ArchiveBlock: ### child_exit");
+    return APR_SUCCESS;
 }
 
 /* The request handler.
