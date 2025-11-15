@@ -78,12 +78,22 @@ static const command_rec archiveblock_directives[] = {
  */
 static void archiveblock_register_hooks(apr_pool_t *p)
 {
-    apr_status_t rc;
-
     /* Set default config parameters. */
     config.mappath = "/var/ifarchive/lib/blocktag.map";
     config.rootdomain = "ifarchive.org";
     config.restrictdomain = "ukrestrict.ifarchive.org";
+
+    ap_hook_child_init(archiveblock_child_init, NULL, NULL, APR_HOOK_MIDDLE);
+    ap_hook_handler(archiveblock_handler, NULL, NULL, APR_HOOK_MIDDLE);
+}
+
+/* This hook is called when a child process (not thread!) is spawned.
+ */
+static void archiveblock_child_init(apr_pool_t *p, server_rec *s)
+{
+    apr_status_t rc;
+
+    ap_log_perror(APLOG_MARK, APLOG_NOTICE, 0, p, "ArchiveBlock: ### child_init");
 
     rc = apr_thread_mutex_create(&tagmap_lock, APR_THREAD_MUTEX_DEFAULT, p);
     if (rc != APR_SUCCESS) {
@@ -94,16 +104,6 @@ static void archiveblock_register_hooks(apr_pool_t *p)
     tagmap_dirs = apr_table_make(p, 64);
     tagmap_trees = apr_table_make(p, 64);
     
-    ap_hook_child_init(archiveblock_child_init, NULL, NULL, APR_HOOK_MIDDLE);
-    ap_hook_handler(archiveblock_handler, NULL, NULL, APR_HOOK_MIDDLE);
-}
-
-/* This hook is called when a child process (not thread!) is spawned.
- */
-static void archiveblock_child_init(apr_pool_t *p, server_rec *s)
-{
-    ap_log_perror(APLOG_MARK, APLOG_NOTICE, 0, p, "ArchiveBlock: ### child_init");
-
     apr_pool_cleanup_register(p, s, archiveblock_child_exit, archiveblock_child_exit);
 }
 
@@ -114,8 +114,20 @@ static void archiveblock_child_init(apr_pool_t *p, server_rec *s)
 */
 static apr_status_t archiveblock_child_exit(void *data)
 {
+    apr_status_t rc;
+
     server_rec *s = data;
     ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, s, "ArchiveBlock: ### child_exit");
+
+    apr_table_clear(tagmap_files);
+    apr_table_clear(tagmap_dirs);
+    apr_table_clear(tagmap_trees);
+    
+    rc = apr_thread_mutex_destroy(tagmap_lock);
+    if (rc != APR_SUCCESS) {
+        ap_log_error(APLOG_MARK, APLOG_ERR, 0, s, "ArchiveBlock: Unable to destroy thread lock");
+    }
+    
     return APR_SUCCESS;
 }
 
