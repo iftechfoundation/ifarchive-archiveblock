@@ -152,8 +152,6 @@ static int archiveblock_handler(request_rec *r)
         apr_table_add(r->headers_out, "Link", relheader);
     }
 
-    check_config(r);
-
     apr_finfo_t finfo;
     apr_status_t rc = apr_stat(&finfo, r->filename, APR_FINFO_TYPE, r->pool);
     if (rc != APR_SUCCESS || finfo.filetype != APR_REG) {
@@ -167,7 +165,10 @@ static int archiveblock_handler(request_rec *r)
         return DECLINED;
     }
 
+    check_config(r);
+
     int redirect = FALSE;
+    //### come on, man
     const char *tags = find_tags_for_uri(r, &redirect);
     if (!tags && !redirect) {
         /* No safety tags. Allow the regular Apache handling to proceed. */
