@@ -20,7 +20,8 @@
 static void archiveblock_child_init(apr_pool_t *p, server_rec *s);
 static apr_status_t archiveblock_child_exit(void *data);
 static int archiveblock_handler(request_rec *r);
-static const char *find_tags_for_uri(request_rec *r, int *redirect);
+static apr_status_t find_tags_for_uri(request_rec *r, const char **tags, int *redirect);
+static const char *find_tags_for_uri_inner(request_rec *r, int *redirect);
 static apr_status_t check_config(const request_rec *r);
 static apr_status_t read_config(const request_rec *r);
 static void read_config_line(char *ln, const request_rec *r);
@@ -139,6 +140,8 @@ static apr_status_t archiveblock_child_exit(void *data)
  */
 static int archiveblock_handler(request_rec *r)
 {
+    apr_status_t rc;
+    
     if (strcmp(r->handler, "archiveblock")) {
         return DECLINED;
     }
@@ -153,7 +156,7 @@ static int archiveblock_handler(request_rec *r)
     }
 
     apr_finfo_t finfo;
-    apr_status_t rc = apr_stat(&finfo, r->filename, APR_FINFO_TYPE, r->pool);
+    rc = apr_stat(&finfo, r->filename, APR_FINFO_TYPE, r->pool);
     if (rc != APR_SUCCESS || finfo.filetype != APR_REG) {
         /* File does not exist, or it's a directory. We don't restrict
            these; allow regular Apache handling to proceed.
@@ -165,11 +168,13 @@ static int archiveblock_handler(request_rec *r)
         return DECLINED;
     }
 
-    check_config(r);
-
+    const char *tags = NULL;
     int redirect = FALSE;
-    //### come on, man
-    const char *tags = find_tags_for_uri(r, &redirect);
+    rc = find_tags_for_uri(r, &tags, &redirect);
+    if (rc != APR_SUCCESS) {
+        /* Error already logged. */
+        return DECLINED;
+    }
     if (!tags && !redirect) {
         /* No safety tags. Allow the regular Apache handling to proceed. */
         return DECLINED;
@@ -208,11 +213,45 @@ static int archiveblock_handler(request_rec *r)
     return OK;
 }
 
+/* This locks the mutex for table access.
+*/
+static apr_status_t find_tags_for_uri(request_rec *r, const char **tags, int *redirect)
+{
+    apr_status_t rc;
+
+    *tags = NULL;
+    *redirect = FALSE;
+
+    rc = apr_thread_mutex_lock(tagmap_lock);
+    if (rc != APR_SUCCESS) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "ArchiveBlock: Unable to lock mutex");
+        return rc;
+    }
+
+    rc = check_config(r);
+    /* Nothing to be done if there was an error. Likely the tables are
+       just empty. */
+    
+    const char *intags = find_tags_for_uri_inner(r, redirect);
+    if (intags) {
+        *tags = apr_pstrdup(r->pool, intags);
+    }
+
+    rc = apr_thread_mutex_unlock(tagmap_lock);
+    if (rc != APR_SUCCESS) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "ArchiveBlock: Unable to unlock mutex");
+        return rc;
+    }
+
+    return APR_SUCCESS;
+}
+
 /* See whether we have safety tags for the given request URI.
    If the tags include any that must be blocked in the UK, we also
    set *redirect.
+   (This must be called under the mutex.)   
 */
-static const char *find_tags_for_uri(request_rec *r, int *redirect)
+static const char *find_tags_for_uri_inner(request_rec *r, int *redirect)
 {
     const char *tags = NULL;
     const char *cx;
@@ -299,12 +338,6 @@ static apr_status_t check_config(const request_rec *r)
     apr_status_t rc;
     apr_finfo_t finfo;
     
-    rc = apr_thread_mutex_lock(tagmap_lock);
-    if (rc != APR_SUCCESS) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "ArchiveBlock: Unable to lock mutex");
-        return rc;
-    }
-
     rc = apr_stat(&finfo, config.mappath, APR_FINFO_MTIME, r->pool);
     if (rc != APR_SUCCESS) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "ArchiveBlock: Unable to stat file: %s", config.mappath);
@@ -312,6 +345,8 @@ static apr_status_t check_config(const request_rec *r)
         return rc;
     }
 
+    rc = APR_SUCCESS;
+        
     if (finfo.mtime > tagmap_mtime) {
         tagmap_mtime = finfo.mtime;
         rc = read_config(r);
@@ -320,13 +355,7 @@ static apr_status_t check_config(const request_rec *r)
             dump_tagmap(r);
     }
 
-    rc = apr_thread_mutex_unlock(tagmap_lock);
-    if (rc != APR_SUCCESS) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "ArchiveBlock: Unable to unlock mutex");
-        return rc;
-    }
-
-    return APR_SUCCESS;
+    return rc;
 }
 
 #define BUFSIZE (256)
