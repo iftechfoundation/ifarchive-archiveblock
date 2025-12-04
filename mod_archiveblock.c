@@ -229,8 +229,9 @@ static apr_status_t find_tags_for_uri(request_rec *r, const char **tags, int *re
     }
 
     rc = check_config(r);
-    /* Nothing to be done if there was an error. Likely the tables are
-       just empty. */
+    /* Nothing to be done if there was an error. (Error was already
+       logged.) Likely the tables are now empty, so it doesn't hurt
+       to continue. */
     
     const char *intags = find_tags_for_uri_inner(r, redirect);
     if (intags) {
@@ -332,6 +333,7 @@ static void dump_tagmap(const request_rec *r)
 
 /* Check if we need to reload the block file. If it's been updated since
    our last load, we reload it.
+   (This must be called under the mutex.)   
 */
 static apr_status_t check_config(const request_rec *r)
 {
@@ -341,7 +343,6 @@ static apr_status_t check_config(const request_rec *r)
     rc = apr_stat(&finfo, config.mappath, APR_FINFO_MTIME, r->pool);
     if (rc != APR_SUCCESS) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "ArchiveBlock: Unable to stat file: %s", config.mappath);
-        apr_thread_mutex_unlock(tagmap_lock);
         return rc;
     }
 
