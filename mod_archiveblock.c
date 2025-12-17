@@ -13,12 +13,14 @@
 #include "apr_strings.h"
 #include "ap_config.h"
 #include "httpd.h"
+#include "http_core.h"
 #include "http_config.h"
 #include "http_protocol.h"
 #include "http_log.h"
 
+static int archiveblock_pre_config(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp);
+static int archiveblock_post_config(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s);
 static void archiveblock_child_init(apr_pool_t *p, server_rec *s);
-static apr_status_t archiveblock_child_exit(void *data);
 static int archiveblock_handler(request_rec *r);
 static apr_status_t find_tags_for_uri(request_rec *r, const char **tags, int *redirect);
 static const char *find_tags_for_uri_inner(request_rec *r, int *redirect);
@@ -84,52 +86,42 @@ static void archiveblock_register_hooks(apr_pool_t *p)
     config.rootdomain = "ifarchive.org";
     config.restrictdomain = "ukrestrict.ifarchive.org";
 
+    ap_hook_pre_config(archiveblock_pre_config, NULL, NULL, APR_HOOK_MIDDLE);
+    ap_hook_post_config(archiveblock_post_config, NULL, NULL, APR_HOOK_MIDDLE);
     ap_hook_child_init(archiveblock_child_init, NULL, NULL, APR_HOOK_MIDDLE);
     ap_hook_handler(archiveblock_handler, NULL, NULL, APR_HOOK_MIDDLE);
+}
+
+static int archiveblock_pre_config(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp)
+{
+    return OK;
+}
+
+static int archiveblock_post_config(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)
+{
+    apr_status_t rc;
+
+    if (ap_state_query(AP_SQ_MAIN_STATE) == AP_SQ_MS_CREATE_PRE_CONFIG)
+        return OK;
+
+    ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, s, "ArchiveBlock: ### post_config initing");
+
+    rc = apr_thread_mutex_create(&tagmap_lock, APR_THREAD_MUTEX_DEFAULT, pconf);
+    if (rc != APR_SUCCESS) {
+        ap_log_error(APLOG_MARK, APLOG_ERR, rc, s, "ArchiveBlock: Unable to create thread lock");
+    }
+    
+    tagmap_files = apr_table_make(pconf, 64);
+    tagmap_dirs = apr_table_make(pconf, 64);
+    tagmap_trees = apr_table_make(pconf, 64);
+
+    return OK;
 }
 
 /* This hook is called when a child process (not thread!) is spawned.
  */
 static void archiveblock_child_init(apr_pool_t *p, server_rec *s)
 {
-    apr_status_t rc;
-
-    ap_log_perror(APLOG_MARK, APLOG_NOTICE, 0, p, "ArchiveBlock: ### child_init");
-
-    rc = apr_thread_mutex_create(&tagmap_lock, APR_THREAD_MUTEX_DEFAULT, p);
-    if (rc != APR_SUCCESS) {
-        ap_log_perror(APLOG_MARK, APLOG_ERR, 0, p, "ArchiveBlock: Unable to create thread lock");
-    }
-    
-    tagmap_files = apr_table_make(p, 64);
-    tagmap_dirs = apr_table_make(p, 64);
-    tagmap_trees = apr_table_make(p, 64);
-    
-    apr_pool_cleanup_register(p, s, archiveblock_child_exit, archiveblock_child_exit);
-}
-
-/* The child_init() call above sets this callback to run when the process
-   exits. It's also called when the process forks and is about to exec,
-   which I don't think a child process ever does, but we'll set it up
-   anyhow.
-*/
-static apr_status_t archiveblock_child_exit(void *data)
-{
-    apr_status_t rc;
-
-    server_rec *s = data;
-    ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, s, "ArchiveBlock: ### child_exit");
-
-    apr_table_clear(tagmap_files);
-    apr_table_clear(tagmap_dirs);
-    apr_table_clear(tagmap_trees);
-    
-    rc = apr_thread_mutex_destroy(tagmap_lock);
-    if (rc != APR_SUCCESS) {
-        ap_log_error(APLOG_MARK, APLOG_ERR, 0, s, "ArchiveBlock: Unable to destroy thread lock");
-    }
-    
-    return APR_SUCCESS;
 }
 
 /* The request handler.
