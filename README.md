@@ -1,5 +1,13 @@
 # Apache plugin for restricting files
 
+**Deprecated**
+
+Writing an Apache plugin in C was a "neat idea" (with audible finger-quotes). It did not work out. After three months of persistent Apache subprocess leaks, I gave up on this approach and switched over to a [Python WSGI app][ifarchive-archiveblock-py].
+
+[ifarchive-archiveblock-py]: https://github.com/iftechfoundation/ifarchive-archiveblock-py
+
+----
+
 This tool is part of a system for restricting certain [IF Archive][ifarch] files from being served in the UK. It sucks that we have to do this, but we do. See discussion of the [UK Online Safety Act][ukosa].
 
 [ifarch]: https://ifarchive.org/
